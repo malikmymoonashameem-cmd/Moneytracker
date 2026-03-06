@@ -1,0 +1,7 @@
+{
+  "name": "MoneyTrack",
+  "description": "A personal financial management app for tracking expenses, categorizing spending, and visualizing financial health with a mobile-first design.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

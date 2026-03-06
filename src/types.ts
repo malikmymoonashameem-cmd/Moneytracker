@@ -1,0 +1,221 @@
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export interface User {
+  id: number;
+  email: string;
+  name: string;
+  preferred_currency?: string;
+}
+
+export interface Budget {
+  id: number;
+  user_id: number;
+  category: string;
+  amount: number;
+  month: string; // YYYY-MM
+  expiryDate?: string; // YYYY-MM-DD
+}
+
+export interface Expense {
+  id: number;
+  user_id: number;
+  amount: number;
+  category: string;
+  date: string;
+  time: string;
+  currency: string;
+  notes: string;
+  receipt_url?: string;
+}
+
+export const CATEGORIES = [
+  "Food",
+  "Groceries",
+  "Transport",
+  "Entertainment",
+  "Shopping",
+  "Utilities",
+  "Health",
+  "Travel",
+  "Other",
+];
+
+export const CATEGORY_COLORS: Record<string, string> = {
+  Food: "#F87171",
+  Groceries: "#4ADE80",
+  Transport: "#60A5FA",
+  Entertainment: "#A78BFA",
+  Shopping: "#FBBF24",
+  Utilities: "#34D399",
+  Health: "#F472B6",
+  Travel: "#FB923C",
+  Other: "#94A3B8",
+};
+
+export const CURRENCIES = [
+  { code: "USD", symbol: "$" },
+  { code: "EUR", symbol: "€" },
+  { code: "GBP", symbol: "£" },
+  { code: "JPY", symbol: "¥" },
+  { code: "INR", symbol: "₹" },
+  { code: "AUD", symbol: "A$" },
+  { code: "CAD", symbol: "C$" },
+  { code: "CHF", symbol: "Fr" },
+  { code: "CNY", symbol: "¥" },
+  { code: "AED", symbol: "د.إ" },
+  { code: "AFN", symbol: "؋" },
+  { code: "ALL", symbol: "L" },
+  { code: "AMD", symbol: "֏" },
+  { code: "ANG", symbol: "ƒ" },
+  { code: "AOA", symbol: "Kz" },
+  { code: "ARS", symbol: "$" },
+  { code: "AWG", symbol: "ƒ" },
+  { code: "AZN", symbol: "₼" },
+  { code: "BAM", symbol: "KM" },
+  { code: "BBD", symbol: "$" },
+  { code: "BDT", symbol: "৳" },
+  { code: "BGN", symbol: "лв" },
+  { code: "BHD", symbol: ".د.ب" },
+  { code: "BIF", symbol: "Fr" },
+  { code: "BMD", symbol: "$" },
+  { code: "BND", symbol: "$" },
+  { code: "BOB", symbol: "Bs." },
+  { code: "BRL", symbol: "R$" },
+  { code: "BSD", symbol: "$" },
+  { code: "BTN", symbol: "Nu." },
+  { code: "BWP", symbol: "P" },
+  { code: "BYN", symbol: "Br" },
+  { code: "BZD", symbol: "$" },
+  { code: "CDF", symbol: "Fr" },
+  { code: "CLP", symbol: "$" },
+  { code: "COP", symbol: "$" },
+  { code: "CRC", symbol: "₡" },
+  { code: "CUP", symbol: "$" },
+  { code: "CVE", symbol: "$" },
+  { code: "CZK", symbol: "Kč" },
+  { code: "DJF", symbol: "Fr" },
+  { code: "DKK", symbol: "kr" },
+  { code: "DOP", symbol: "$" },
+  { code: "DZD", symbol: "د.ج" },
+  { code: "EGP", symbol: "£" },
+  { code: "ERN", symbol: "Nfk" },
+  { code: "ETB", symbol: "Br" },
+  { code: "FJD", symbol: "$" },
+  { code: "FKP", symbol: "£" },
+  { code: "GEL", symbol: "₾" },
+  { code: "GHS", symbol: "₵" },
+  { code: "GIP", symbol: "£" },
+  { code: "GMD", symbol: "D" },
+  { code: "GNF", symbol: "Fr" },
+  { code: "GTQ", symbol: "Q" },
+  { code: "GYD", symbol: "$" },
+  { code: "HKD", symbol: "$" },
+  { code: "HNL", symbol: "L" },
+  { code: "HRK", symbol: "kn" },
+  { code: "HTG", symbol: "G" },
+  { code: "HUF", symbol: "Ft" },
+  { code: "IDR", symbol: "Rp" },
+  { code: "ILS", symbol: "₪" },
+  { code: "IMP", symbol: "£" },
+  { code: "IQD", symbol: "ع.د" },
+  { code: "IRR", symbol: "﷼" },
+  { code: "ISK", symbol: "kr" },
+  { code: "JEP", symbol: "£" },
+  { code: "JMD", symbol: "$" },
+  { code: "JOD", symbol: "د.ا" },
+  { code: "KES", symbol: "Sh" },
+  { code: "KGS", symbol: "с" },
+  { code: "KHR", symbol: "៛" },
+  { code: "KMF", symbol: "Fr" },
+  { code: "KPW", symbol: "₩" },
+  { code: "KRW", symbol: "₩" },
+  { code: "KWD", symbol: "د.ك" },
+  { code: "KYD", symbol: "$" },
+  { code: "KZT", symbol: "₸" },
+  { code: "LAK", symbol: "₭" },
+  { code: "LBP", symbol: "£" },
+  { code: "LKR", symbol: "Rs" },
+  { code: "LRD", symbol: "$" },
+  { code: "LSL", symbol: "L" },
+  { code: "LYD", symbol: "ل.د" },
+  { code: "MAD", symbol: "د.م." },
+  { code: "MDL", symbol: "L" },
+  { code: "MGA", symbol: "Ar" },
+  { code: "MKD", symbol: "ден" },
+  { code: "MMK", symbol: "K" },
+  { code: "MNT", symbol: "₮" },
+  { code: "MOP", symbol: "P" },
+  { code: "MRU", symbol: "UM" },
+  { code: "MUR", symbol: "₨" },
+  { code: "MVR", symbol: "Rf" },
+  { code: "MWK", symbol: "MK" },
+  { code: "MXN", symbol: "$" },
+  { code: "MYR", symbol: "RM" },
+  { code: "MZN", symbol: "MT" },
+  { code: "NAD", symbol: "$" },
+  { code: "NGN", symbol: "₦" },
+  { code: "NIO", symbol: "C$" },
+  { code: "NOK", symbol: "kr" },
+  { code: "NPR", symbol: "₨" },
+  { code: "NZD", symbol: "$" },
+  { code: "OMR", symbol: "ر.ع." },
+  { code: "PAB", symbol: "B/." },
+  { code: "PEN", symbol: "S/" },
+  { code: "PGK", symbol: "K" },
+  { code: "PHP", symbol: "₱" },
+  { code: "PKR", symbol: "₨" },
+  { code: "PLN", symbol: "zł" },
+  { code: "PYG", symbol: "₲" },
+  { code: "QAR", symbol: "ر.ق" },
+  { code: "RON", symbol: "lei" },
+  { code: "RSD", symbol: "дин" },
+  { code: "RUB", symbol: "₽" },
+  { code: "RWF", symbol: "Fr" },
+  { code: "SAR", symbol: "ر.س" },
+  { code: "SBD", symbol: "$" },
+  { code: "SCR", symbol: "₨" },
+  { code: "SDG", symbol: "£" },
+  { code: "SEK", symbol: "kr" },
+  { code: "SGD", symbol: "$" },
+  { code: "SHP", symbol: "£" },
+  { code: "SLL", symbol: "Le" },
+  { code: "SOS", symbol: "Sh" },
+  { code: "SRD", symbol: "$" },
+  { code: "SSP", symbol: "£" },
+  { code: "STN", symbol: "Db" },
+  { code: "SVC", symbol: "$" },
+  { code: "SYP", symbol: "£" },
+  { code: "SZL", symbol: "L" },
+  { code: "THB", symbol: "฿" },
+  { code: "TJS", symbol: "ЅМ" },
+  { code: "TMT", symbol: "m" },
+  { code: "TND", symbol: "د.ت" },
+  { code: "TOP", symbol: "T$" },
+  { code: "TRY", symbol: "₺" },
+  { code: "TTD", symbol: "$" },
+  { code: "TVD", symbol: "$" },
+  { code: "TWD", symbol: "$" },
+  { code: "TZS", symbol: "Sh" },
+  { code: "UAH", symbol: "₴" },
+  { code: "UGX", symbol: "Sh" },
+  { code: "UYU", symbol: "$" },
+  { code: "UZS", symbol: "лв" },
+  { code: "VES", symbol: "Bs.S" },
+  { code: "VND", symbol: "₫" },
+  { code: "VUV", symbol: "Vt" },
+  { code: "WST", symbol: "T" },
+  { code: "XAF", symbol: "Fr" },
+  { code: "XCD", symbol: "$" },
+  { code: "XDR", symbol: "SDR" },
+  { code: "XOF", symbol: "Fr" },
+  { code: "XPF", symbol: "Fr" },
+  { code: "YER", symbol: "﷼" },
+  { code: "ZAR", symbol: "R" },
+  { code: "ZMW", symbol: "ZK" },
+  { code: "ZWL", symbol: "$" },
+];
