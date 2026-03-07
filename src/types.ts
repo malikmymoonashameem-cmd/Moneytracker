@@ -33,6 +33,16 @@ export interface Expense {
   receipt_url?: string;
 }
 
+export interface Income {
+  id: number;
+  user_id: number;
+  amount: number;
+  source: string;
+  date: string;
+  currency: string;
+  notes: string;
+}
+
 export const CATEGORIES = [
   "Food",
   "Groceries",

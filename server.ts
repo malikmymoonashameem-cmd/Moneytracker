@@ -35,8 +35,20 @@ db.exec(`
     category TEXT,
     amount REAL,
     month TEXT,
+    expiryDate TEXT,
     FOREIGN KEY(user_id) REFERENCES users(id),
     UNIQUE(user_id, category, month)
+  );
+
+  CREATE TABLE IF NOT EXISTS income (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    amount REAL,
+    source TEXT,
+    date TEXT,
+    currency TEXT DEFAULT 'USD',
+    notes TEXT,
+    FOREIGN KEY(user_id) REFERENCES users(id)
   );
 
   -- Migration for existing tables
@@ -56,6 +68,9 @@ try {
 } catch (e) {}
 try {
   db.prepare("ALTER TABLE expenses ADD COLUMN currency TEXT DEFAULT 'USD'").run();
+} catch (e) {}
+try {
+  db.prepare("ALTER TABLE budgets ADD COLUMN expiryDate TEXT").run();
 } catch (e) {}
 
 async function startServer() {
@@ -132,18 +147,41 @@ async function startServer() {
     res.json(budgets);
   });
 
-  app.post("/api/budgets", auth, (req: any, res) => {
-    const { category, amount, month } = req.body;
-    db.prepare(`
-      INSERT OR REPLACE INTO budgets (user_id, category, amount, month)
-      VALUES (?, ?, ?, ?)
-    `).run(req.userId, category, amount, month);
+  app.get("/api/income", auth, (req: any, res) => {
+    const income = db.prepare("SELECT * FROM income WHERE user_id = ? ORDER BY date DESC").all(req.userId);
+    res.json(income);
+  });
+
+  app.post("/api/income", auth, (req: any, res) => {
+    const { amount, source, date, currency, notes } = req.body;
+    const result = db.prepare(`
+      INSERT INTO income (user_id, amount, source, date, currency, notes)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(req.userId, amount, source, date, currency, notes);
     
-    res.json({ success: true });
+    const newIncome = db.prepare("SELECT * FROM income WHERE id = ?").get(result.lastInsertRowid);
+    res.json(newIncome);
+  });
+
+  app.post("/api/budgets", auth, (req: any, res) => {
+    const { category, amount, month, expiryDate } = req.body;
+    console.log("POST /api/budgets received:", { userId: req.userId, category, amount, month, expiryDate });
+    const result = db.prepare(`
+      INSERT OR REPLACE INTO budgets (user_id, category, amount, month, expiryDate)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(req.userId, category, amount, month, expiryDate);
+    
+    const newBudget = db.prepare("SELECT * FROM budgets WHERE user_id = ? AND category = ? AND month = ?").get(req.userId, category, month);
+    res.json(newBudget);
   });
 
   app.delete("/api/expenses/:id", auth, (req: any, res) => {
     db.prepare("DELETE FROM expenses WHERE id = ? AND user_id = ?").run(req.params.id, req.userId);
+    res.json({ success: true });
+  });
+
+  app.delete("/api/budgets/:id", auth, (req: any, res) => {
+    db.prepare("DELETE FROM budgets WHERE id = ? AND user_id = ?").run(req.params.id, req.userId);
     res.json({ success: true });
   });
 

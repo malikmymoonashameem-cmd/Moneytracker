@@ -17,11 +17,12 @@ import {
   Tag,
   FileText,
   Camera,
-  Trash2,
   PieChart as PieChartIcon,
   Search,
   Sun,
-  Moon
+  Moon,
+  Trash2,
+  Activity
 } from 'lucide-react';
 import { MoneyTrackLogo } from './components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
@@ -38,8 +39,9 @@ import {
   Legend
 } from 'recharts';
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
-import { cn, type User, type Expense, type Budget, CATEGORIES, CATEGORY_COLORS, CURRENCIES } from './types';
+import { cn, type User, type Expense, type Budget, type Income, CATEGORIES, CATEGORY_COLORS, CURRENCIES } from './types';
 import { PrivacyPolicy, TermsOfService } from './StaticPages';
+import { AddIncomeView, IncomeListView } from './components/IncomeViews';
 
 // --- Components ---
 
@@ -168,10 +170,11 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [income, setIncome] = useState<Income[]>([]);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isPrivacyPolicyOpen, setIsPrivacyPolicyOpen] = useState(false);
   const [isTermsOfServiceOpen, setIsTermsOfServiceOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'add' | 'profile' | 'stats' | 'budgets'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'add' | 'profile' | 'stats' | 'income'>('dashboard');
   const [loading, setLoading] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -189,16 +192,17 @@ export default function App() {
     localStorage.setItem('fintrack_dark_mode', JSON.stringify(darkMode));
   }, [darkMode]);
 
-  // Fetch expenses and budgets
+  // Fetch expenses, budgets, and income
   const fetchData = async (userId: number) => {
     try {
-      const [expensesRes, budgetsRes] = await Promise.all([
+      const [expensesRes, budgetsRes, incomeRes] = await Promise.all([
         fetch('/api/expenses', { headers: { 'x-user-id': userId.toString() } }),
-        fetch('/api/budgets', { headers: { 'x-user-id': userId.toString() } })
+        fetch('/api/budgets', { headers: { 'x-user-id': userId.toString() } }),
+        fetch('/api/income', { headers: { 'x-user-id': userId.toString() } })
       ]);
       
-      if (!expensesRes.ok || !budgetsRes.ok) {
-        if (expensesRes.status === 401 || budgetsRes.status === 401) {
+      if (!expensesRes.ok || !budgetsRes.ok || !incomeRes.ok) {
+        if (expensesRes.status === 401 || budgetsRes.status === 401 || incomeRes.status === 401) {
           handleLogout();
           return;
         }
@@ -207,8 +211,10 @@ export default function App() {
       
       const expensesData = await expensesRes.json();
       const budgetsData = await budgetsRes.json();
+      const incomeData = await incomeRes.json();
       setExpenses(Array.isArray(expensesData) ? expensesData : []);
       setBudgets(Array.isArray(budgetsData) ? budgetsData : []);
+      setIncome(Array.isArray(incomeData) ? incomeData : []);
     } catch (err) {
       console.error("Failed to fetch data", err);
       setExpenses([]);
@@ -273,6 +279,28 @@ export default function App() {
     }
   };
 
+  const handleAddIncome = async (incomeData: Partial<Income>) => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/income', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': user.id.toString()
+        },
+        body: JSON.stringify(incomeData)
+      });
+      const newIncome = await res.json();
+      setIncome([newIncome, ...income]);
+      setActiveTab('dashboard');
+    } catch (err) {
+      alert("Failed to add income");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteExpense = async (id: number) => {
     if (!user) return;
     
@@ -293,6 +321,52 @@ export default function App() {
       console.error("Delete error:", err);
       setExpenses(previousExpenses);
       alert("Failed to delete expense. Please try again.");
+    }
+  };
+
+  const handleDeleteIncome = async (id: number) => {
+    if (!user) return;
+    
+    // Optimistic update
+    const previousIncome = [...income];
+    setIncome(income.filter(i => i.id !== id));
+    
+    try {
+      const res = await fetch(`/api/income/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-user-id': user.id.toString() }
+      });
+      
+      if (!res.ok) {
+        throw new Error("Failed to delete");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      setIncome(previousIncome);
+      alert("Failed to delete income. Please try again.");
+    }
+  };
+
+  const handleDeleteBudget = async (id: number) => {
+    if (!user) return;
+    
+    // Optimistic update
+    const previousBudgets = [...budgets];
+    setBudgets(budgets.filter(b => b.id !== id));
+    
+    try {
+      const res = await fetch(`/api/budgets/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-user-id': user.id.toString() }
+      });
+      
+      if (!res.ok) {
+        throw new Error("Failed to delete");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      setBudgets(previousBudgets);
+      alert("Failed to delete budget. Please try again.");
     }
   };
 
@@ -414,7 +488,7 @@ export default function App() {
       <main className="max-w-2xl mx-auto p-6">
         <AnimatePresence mode="wait">
           {activeTab === 'dashboard' && (
-            <DashboardView expenses={expenses} darkMode={darkMode} user={user} onSelectExpense={setSelectedExpense} />
+            <DashboardView expenses={expenses} income={income} darkMode={darkMode} user={user} onSelectExpense={setSelectedExpense} />
           )}
           {activeTab === 'list' && (
             <ListView expenses={expenses} onDelete={handleDeleteExpense} onSelectExpense={setSelectedExpense} />
@@ -422,14 +496,17 @@ export default function App() {
           {activeTab === 'add' && (
             <AddExpenseView onAdd={handleAddExpense} loading={loading} user={user} />
           )}
+          {activeTab === 'income' && (
+            <div className="space-y-6">
+              <AddIncomeView onAdd={handleAddIncome} loading={loading} user={user} />
+              <IncomeListView income={income} onDelete={handleDeleteIncome} />
+            </div>
+          )}
           {activeTab === 'profile' && (
-            <ProfileView user={user} onLogout={handleLogout} onUpdateSettings={handleUpdateSettings} darkMode={darkMode} setDarkMode={setDarkMode} setIsTermsOfServiceOpen={setIsTermsOfServiceOpen} setIsPrivacyPolicyOpen={setIsPrivacyPolicyOpen} />
+            <ProfileView user={user} onLogout={handleLogout} onUpdateSettings={handleUpdateSettings} darkMode={darkMode} setDarkMode={setDarkMode} setIsTermsOfServiceOpen={setIsTermsOfServiceOpen} setIsPrivacyPolicyOpen={setIsPrivacyPolicyOpen} budgets={budgets} setBudgets={setBudgets} expenses={expenses} onDeleteBudget={handleDeleteBudget} />
           )}
           {activeTab === 'stats' && (
             <StatsView expenses={expenses} darkMode={darkMode} user={user} />
-          )}
-          {activeTab === 'budgets' && (
-            <BudgetsView budgets={budgets} expenses={expenses} user={user} />
           )}
         </AnimatePresence>
       </main>
@@ -461,6 +538,12 @@ export default function App() {
             icon={<ListOrdered />} 
             label="History" 
           />
+          <NavButton 
+            active={activeTab === 'income'} 
+            onClick={() => setActiveTab('income')} 
+            icon={<TrendingUp />} 
+            label="Income" 
+          />
           <button 
             onClick={() => setActiveTab('add')}
             className={cn(
@@ -481,12 +564,6 @@ export default function App() {
             onClick={() => setActiveTab('stats')} 
             icon={<PieChartIcon />} 
             label="Stats" 
-          />
-          <NavButton 
-            active={activeTab === 'budgets'} 
-            onClick={() => setActiveTab('budgets')} 
-            icon={<FileText />} 
-            label="Budgets" 
           />
         </div>
       </nav>
@@ -509,91 +586,10 @@ function NavButton({ active, onClick, icon, label }: { active: boolean; onClick:
   );
 }
 
-function BudgetsView({ budgets, expenses, user }: { budgets: Budget[]; expenses: Expense[]; user: User | null }) {
-  const [category, setCategory] = useState(CATEGORIES[0]);
-  const [amount, setAmount] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
-  const month = format(new Date(), 'yyyy-MM');
-  const preferredCurrency = user?.preferred_currency || 'USD';
-
-  const handleSetBudget = async () => {
-    try {
-      const res = await fetch('/api/budgets', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-user-id': user!.id.toString()
-        },
-        body: JSON.stringify({ category, amount: parseFloat(amount), month, expiryDate: expiryDate || null })
-      });
-      if (res.ok) {
-        alert("Budget set successfully");
-        window.location.reload(); // Simple refresh to update budgets
-      }
-    } catch (err) {
-      alert("Failed to set budget");
-    }
-  };
-
-  const getCurrencySymbol = (code: string) => {
-    return CURRENCIES.find(c => c.code === code)?.symbol || "$";
-  };
-
-  const today = new Date();
-  const isBudgetActive = (budget: Budget) => {
-    if (!budget.expiryDate) return budget.month === month;
-    return new Date(budget.expiryDate) >= today;
-  };
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      className="space-y-6"
-    >
-      <Card>
-        <h2 className="text-xl font-bold mb-4 dark:text-white">Set Budget</h2>
-        <div className="space-y-4">
-          <Select label="Category" value={category} onChange={e => setCategory(e.target.value)} options={CATEGORIES} />
-          <Input label="Amount" type="number" value={amount} onChange={e => setAmount(e.target.value)} />
-          <Input label="Expiry Date (Optional)" type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />
-          <Button onClick={handleSetBudget} className="w-full">Set Budget</Button>
-        </div>
-      </Card>
-
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold dark:text-white">Active Budgets</h2>
-        {budgets.filter(isBudgetActive).map(budget => {
-          const spent = expenses
-            .filter(e => e.category === budget.category && (budget.expiryDate ? e.date <= budget.expiryDate : e.date.startsWith(month)))
-            .reduce((sum, e) => sum + e.amount, 0);
-          const progress = Math.min((spent / budget.amount) * 100, 100);
-          
-          return (
-            <Card key={budget.id}>
-              <div className="flex justify-between mb-2">
-                <span className="font-bold dark:text-white">{budget.category}</span>
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {getCurrencySymbol(preferredCurrency)}{spent.toFixed(2)} / {getCurrencySymbol(preferredCurrency)}{budget.amount.toFixed(2)}
-                </span>
-              </div>
-              <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2.5">
-                <div className="bg-black dark:bg-white h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
-              </div>
-              {budget.expiryDate && (
-                <p className="text-xs text-zinc-400 mt-2">Expires: {budget.expiryDate}</p>
-              )}
-            </Card>
-          );
-        })}
-      </div>
-    </motion.div>
-  );
-}
-
-function DashboardView({ expenses, darkMode, user, onSelectExpense }: { expenses: Expense[]; darkMode: boolean; user: User | null; onSelectExpense: (expense: Expense) => void }) {
+function DashboardView({ expenses, income, darkMode, user, onSelectExpense }: { expenses: Expense[]; income: Income[]; darkMode: boolean; user: User | null; onSelectExpense: (expense: Expense) => void }) {
   const totalSpending = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalIncome = income.reduce((sum, i) => sum + i.amount, 0);
+  const netSavings = totalIncome - totalSpending;
   
   const categoryData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -618,18 +614,26 @@ function DashboardView({ expenses, darkMode, user, onSelectExpense }: { expenses
       exit={{ opacity: 0, x: 20 }}
       className="space-y-6"
     >
-      {/* Summary Card */}
-      <div className="bg-black dark:bg-zinc-800 rounded-[2.5rem] p-8 text-white shadow-xl relative overflow-hidden transition-colors duration-300">
-        <div className="relative z-10">
-          <p className="text-zinc-400 dark:text-zinc-500 text-sm font-medium uppercase tracking-widest mb-1">Total Spending</p>
-          <h2 className="text-5xl font-bold tracking-tighter">
-            {getCurrencySymbol(preferredCurrency)}{totalSpending.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </h2>
-          <div className="mt-8 flex items-center gap-4">
-            <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-full text-xs font-medium">
-              <TrendingDown className="w-3.5 h-3.5 text-emerald-400" />
-              <span>12% less than last month</span>
-            </div>
+      {/* Financial Summary Card */}
+      <div className="bg-zinc-900 dark:bg-zinc-800 rounded-[2.5rem] p-8 text-white shadow-xl relative overflow-hidden transition-colors duration-300">
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <p className="text-zinc-400 dark:text-zinc-500 text-sm font-medium uppercase tracking-widest mb-1">Total Income</p>
+            <h2 className="text-3xl font-bold tracking-tighter text-emerald-400">
+              {getCurrencySymbol(preferredCurrency)}{totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </h2>
+          </div>
+          <div>
+            <p className="text-zinc-400 dark:text-zinc-500 text-sm font-medium uppercase tracking-widest mb-1">Total Expenses</p>
+            <h2 className="text-3xl font-bold tracking-tighter text-red-400">
+              {getCurrencySymbol(preferredCurrency)}{totalSpending.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </h2>
+          </div>
+          <div>
+            <p className="text-zinc-400 dark:text-zinc-500 text-sm font-medium uppercase tracking-widest mb-1">Net Savings</p>
+            <h2 className={`text-3xl font-bold tracking-tighter ${netSavings >= 0 ? 'text-white' : 'text-red-500'}`}>
+              {getCurrencySymbol(preferredCurrency)}{netSavings.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </h2>
           </div>
         </div>
         {/* Abstract background shapes */}
@@ -938,7 +942,101 @@ function AddExpenseView({ onAdd, loading, user }: { onAdd: (data: Partial<Expens
   );
 }
 
-function ProfileView({ user, onLogout, onUpdateSettings, darkMode, setDarkMode, setIsTermsOfServiceOpen, setIsPrivacyPolicyOpen }: { user: User; onLogout: () => void; onUpdateSettings: (settings: Partial<User>) => void; darkMode: boolean; setDarkMode: (val: boolean) => void; setIsTermsOfServiceOpen: (val: boolean) => void; setIsPrivacyPolicyOpen: (val: boolean) => void }) {
+const BudgetView = ({ budgets, expenses, onDeleteBudget, user }: { budgets: Budget[]; expenses: Expense[]; onDeleteBudget: (id: number) => void; user: User }) => {
+  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [amount, setAmount] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const preferredCurrency = user?.preferred_currency || 'USD';
+
+  const handleSetBudget = async () => {
+    const parsedAmount = parseFloat(amount);
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      alert("Please enter a valid amount");
+      return;
+    }
+    try {
+      const res = await fetch('/api/budgets', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': user!.id.toString()
+        },
+        body: JSON.stringify({ category, amount: parsedAmount, month: selectedMonth, expiryDate: expiryDate || null })
+      });
+      if (res.ok) {
+        alert("Budget set successfully");
+      } else {
+        alert("Failed to set budget");
+      }
+    } catch (err) {
+      alert("Failed to set budget");
+    }
+  };
+
+  const getCurrencySymbol = (code: string) => {
+    return CURRENCIES.find(c => c.code === code)?.symbol || "$";
+  };
+
+  const today = new Date();
+  const isBudgetActive = (budget: Budget) => {
+    const isMonthActive = budget.month === selectedMonth;
+    const isNotExpired = !budget.expiryDate || new Date(budget.expiryDate) >= today;
+    return isMonthActive && isNotExpired;
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <h2 className="text-xl font-bold mb-4 dark:text-white">Set Budget</h2>
+        <div className="space-y-4">
+          <Select label="Category" value={category} onChange={e => setCategory(e.target.value)} options={CATEGORIES} />
+          <Input label="Amount" type="number" value={amount} onChange={e => setAmount(e.target.value)} />
+          <Input label="Month" type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} />
+          <Input label="Expiry Date (Optional)" type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />
+          <Button onClick={handleSetBudget} className="w-full">Set Budget</Button>
+        </div>
+      </Card>
+
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold dark:text-white">Active Budgets ({selectedMonth})</h2>
+        {budgets.filter(isBudgetActive).map(budget => {
+          const spent = expenses
+            .filter(e => e.category === budget.category && e.date.startsWith(budget.month) && (budget.expiryDate ? e.date <= budget.expiryDate : true))
+            .reduce((sum, e) => sum + e.amount, 0);
+          const progress = Math.min((spent / budget.amount) * 100, 100);
+          
+          return (
+            <Card key={budget.id}>
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+                  <span className="font-bold dark:text-white">{budget.category}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                    {getCurrencySymbol(preferredCurrency)}{spent.toFixed(2)} / {getCurrencySymbol(preferredCurrency)}{budget.amount.toFixed(2)}
+                  </span>
+                  <button onClick={() => onDeleteBudget(budget.id)} className="text-red-500 hover:text-red-700">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2.5">
+                <div className="bg-black dark:bg-white h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
+              </div>
+              {budget.expiryDate && (
+                <p className="text-xs text-zinc-400 mt-2">Expires: {budget.expiryDate}</p>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+function ProfileView({ user, onLogout, onUpdateSettings, darkMode, setDarkMode, setIsTermsOfServiceOpen, setIsPrivacyPolicyOpen, budgets, setBudgets, expenses, onDeleteBudget }: { user: User; onLogout: () => void; onUpdateSettings: (settings: Partial<User>) => void; darkMode: boolean; setDarkMode: (val: boolean) => void; setIsTermsOfServiceOpen: (val: boolean) => void; setIsPrivacyPolicyOpen: (val: boolean) => void; budgets: Budget[]; setBudgets: React.Dispatch<React.SetStateAction<Budget[]>>; expenses: Expense[]; onDeleteBudget: (id: number) => void }) {
   return (
     <motion.div 
       initial={{ opacity: 0, scale: 0.95 }}
@@ -1012,6 +1110,8 @@ function ProfileView({ user, onLogout, onUpdateSettings, darkMode, setDarkMode, 
           </Button>
         </div>
       </Card>
+
+      <BudgetView budgets={budgets} expenses={expenses} onDeleteBudget={onDeleteBudget} user={user} />
 
       <div className="text-center px-6">
         <p className="text-xs text-zinc-400 dark:text-zinc-600">MoneyTrack v1.0.0 • Crafted with care</p>
